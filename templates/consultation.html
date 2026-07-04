@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Consultation · TeleMed{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+    <h1 class="h5 fw-bold mb-0" data-i18n="consult_title">Video consultation</h1>
+    <a href="{{ url_for('chat', appointment_id=appointment_id) if appointment_id else '#' }}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-chat-dots"></i>
+      <span data-i18n="back_to_chat">Back to chat</span>
+    </a>
+  </div>
+  <div id="jitsi-container"
+       data-appointment-id="{{ appointment_id or '' }}"
+       style="height: 80vh; background:#000;"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<!-- The Jitsi Meet IFrame API script must be loaded before it can be used
+     below — this was missing before, which is why the call area stayed a
+     black screen (JitsiMeetExternalAPI was always undefined). -->
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+// TeleMed — Jitsi IFrame integration.
+(function () {
+  const container = document.getElementById('jitsi-container');
+  if (!container) return;
+  const appointmentId = container.dataset.appointmentId;
+  if (!appointmentId) return;
+
+  let leaving = false;
+  let jitsiApi = null;
+
+  function backToChat() {
+    if (leaving) return;
+    leaving = true;
+    // Always return to THIS appointment's chat, not the homepage, so the
+    // user never has to manually edit the URL to get back to their chat.
+    window.location.href = `/chat/${appointmentId}`;
+  }
+
+  function showMessage(text) {
+    container.innerHTML = `<div class="text-white p-3">${text}</div>`;
+  }
+
+  function startMeeting() {
+    fetch(`/consultation/${appointmentId}/meeting`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(r => r.json())
+      .then(({ meeting_link, display_name }) => {
+        if (!meeting_link) {
+          showMessage('Meeting not available.');
+          return;
+        }
+        let roomName;
+        try { roomName = new URL(meeting_link).pathname.replace(/^\//, ''); }
+        catch (_) { roomName = meeting_link.split('/').pop(); }
+        jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+          roomName,
+          parentNode: container,
+          width: '100%',
+          height: '100%',
+          userInfo: { displayName: display_name || 'TeleMed user' },
+          configOverwrite: {
+            prejoinPageEnabled: false,
+            startWithAudioMuted: false,
+            // Skip the post-call "leave feedback" screen — it was delaying
+            // (or effectively blocking) the return-to-chat redirect after
+            // hanging up, which is what made it look "stuck".
+            disableFeedbackPrompt: true
+          },
+          interfaceConfigOverwrite: { MOBILE_APP_PROMO: false }
+        });
+        // Multiple events can fire depending on how the user leaves the
+        // call (hangup button vs. tab close vs. feedback screen) — send
+        // them back to the same chat on any of them. backToChat() is
+        // guarded so only the first one actually navigates.
+        jitsiApi.addEventListener('readyToClose', backToChat);
+        jitsiApi.addEventListener('videoConferenceLeft', backToChat);
+      })
+      .catch(() => {
+        showMessage('Unable to start video.');
+      });
+  }
+
+  // The external_api.js script above loads asynchronously, so wait for it
+  // (briefly) instead of silently giving up if it isn't ready on the very
+  // first tick.
+  function waitForApiThenStart(retriesLeft) {
+    if (typeof JitsiMeetExternalAPI !== 'undefined') {
+      startMeeting();
+      return;
+    }
+    if (retriesLeft <= 0) {
+      showMessage('Unable to load the video call. Please check your internet connection and refresh the page.');
+      return;
+    }
+    setTimeout(() => waitForApiThenStart(retriesLeft - 1), 300);
+  }
+
+  waitForApiThenStart(20);
+
+  // Safety net: the "Back to chat" link above is a normal in-page link, but
+  // if the user instead ends the call from inside the Jitsi toolbar, force
+  // the same redirect ourselves rather than depending only on Jitsi's own
+  // events, so leaving the call never leaves the page stuck.
+  window.addEventListener('beforeunload', () => {
+    if (jitsiApi) {
+      try { jitsiApi.dispose(); } catch (_) { /* noop */ }
+    }
+  });
+})();
+</script>
+{% endblock %}

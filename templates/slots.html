@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Schedule · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="h4 fw-bold mb-3" data-i18n="schedule_title">My Schedule</h1>
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h6 fw-semibold mb-3" data-i18n="slots_add">Add availability</h2>
+      <form id="slotForm" class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label small mb-1" data-i18n="slot_date">Date</label>
+          <input type="date" name="date" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1" data-i18n="slot_from">From</label>
+          <input type="time" name="start_time" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1" data-i18n="slot_to">To</label>
+          <input type="time" name="end_time" class="form-control" required>
+        </div>
+        <div class="col-md-2 d-grid align-items-end">
+          <button class="btn btn-teal mt-md-4" data-i18n="add_btn">Add</button>
+        </div>
+        <div id="slotMsg" class="small mt-1"></div>
+      </form>
+    </div>
+  </div>
+  <h2 class="h6 fw-semibold mb-2" data-i18n="slots_upcoming">Upcoming slots</h2>
+  <div id="slotList" class="list-group">
+    <div class="text-muted small p-3" data-i18n="loading">Loading…</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// TeleMed — Doctor schedule (add + list slots)
+(function () {
+  const form = document.getElementById('slotForm');
+  const list = document.getElementById('slotList');
+  const msg = document.getElementById('slotMsg');
+  if (!list) return;
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  async function load() {
+    try {
+      const res = await fetch('/doctor/slots/list', {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) { list.innerHTML = ''; return; }
+      const data = await res.json();
+      const slots = data.slots || [];
+      if (!slots.length) {
+        list.innerHTML = '<div class="text-muted small p-3">No slots scheduled.</div>';
+        return;
+      }
+      const byDate = slots.reduce((acc, s) => {
+        (acc[s.date] = acc[s.date] || []).push(s); return acc;
+      }, {});
+      list.innerHTML = Object.keys(byDate).sort().map(date => `
+        <div class="list-group-item">
+          <div class="fw-semibold mb-2">${escapeHtml(date)}</div>
+          <div class="d-flex flex-wrap gap-2">
+            ${byDate[date].map(s => `
+              <span class="badge bg-light text-dark border d-flex align-items-center gap-2">
+                ${escapeHtml(s.start_time)} – ${escapeHtml(s.end_time)}
+                ${s.booked
+                  ? '<span class="text-success small">booked</span>'
+                  : `<button data-id="${s.id}" class="btn btn-sm btn-link text-danger p-0 slot-del">&times;</button>`}
+              </span>`).join('')}
+          </div>
+        </div>`).join('');
+    } catch (_) { list.innerHTML = ''; }
+  }
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    msg.textContent = '';
+    const res = await fetch('/doctor/add-slot', {
+      method: 'POST', credentials: 'include', body: fd
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = 'small mt-1 text-success';
+      msg.textContent = data.message || 'Slot added.';
+      form.reset();
+      load();
+    } else {
+      msg.className = 'small mt-1 text-danger';
+      msg.textContent = data.message || 'Failed to add slot.';
+    }
+  });
+  list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.slot-del');
+    if (!btn) return;
+    if (!confirm('Remove this slot?')) return;
+    const res = await fetch(`/doctor/slots/delete/${btn.dataset.id}`, {
+      method: 'POST', credentials: 'include'
+    });
+    if (res.ok) load();
+  });
+  load();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}TeleMed Tamil Nadu — Rural Telemedicine{% endblock %}
+{% block content %}
+<section class="hero-section py-5">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <span class="badge bg-teal-subtle text-teal mb-3">
+          <i class="bi bi-geo-alt"></i> <span data-i18n="hero_badge">Tamil Nadu · Rural Health</span>
+        </span>
+        <h1 class="display-5 fw-bold mb-3" data-i18n="hero_title">
+          Doctor consultations from your village.
+        </h1>
+        <p class="lead text-muted mb-4" data-i18n="hero_subtitle">
+          Book appointments, share reports, and meet doctors over secure video —
+          in Tamil or English, from any phone.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('login') }}" class="btn btn-teal btn-lg" data-i18n="hero_cta_login">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Login
+          </a>
+          <a href="#about" class="btn btn-outline-secondary btn-lg" data-i18n="hero_cta_learn">Learn more</a>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h5 class="mb-3" data-i18n="lang_choose">Choose your language</h5>
+            <div class="d-grid gap-2">
+              <button class="btn btn-lg btn-outline-teal" data-lang="ta">தமிழ்</button>
+              <button class="btn btn-lg btn-outline-teal" data-lang="en">English</button>
+            </div>
+            <p class="text-muted small mt-3 mb-0" data-i18n="lang_hint">
+              You can change this anytime from the top bar.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="about" class="py-5 bg-light">
+  <div class="container">
+    <h2 class="h3 fw-bold text-center mb-4" data-i18n="about_title">About the platform</h2>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-card">
+          <i class="bi bi-search text-teal fs-2"></i>
+          <h5 data-i18n="about_f1_title">Find the right doctor</h5>
+          <p class="text-muted mb-0" data-i18n="about_f1_body">Search by name, specialty, or your symptoms.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <i class="bi bi-calendar-check text-teal fs-2"></i>
+          <h5 data-i18n="about_f2_title">Book and meet online</h5>
+          <p class="text-muted mb-0" data-i18n="about_f2_body">Pick an available slot and meet over secure video.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <i class="bi bi-file-earmark-medical text-teal fs-2"></i>
+          <h5 data-i18n="about_f3_title">Share medical records</h5>
+          <p class="text-muted mb-0" data-i18n="about_f3_body">Upload X-rays, scans and reports safely.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

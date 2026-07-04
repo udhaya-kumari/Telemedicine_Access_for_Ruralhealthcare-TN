@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Consultation History · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="h4 fw-bold mb-3" data-i18n="history_title">Consultation History</h1>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="table-light">
+        <tr>
+          <th data-i18n="th_date">Date</th>
+          <th data-i18n="th_with">With</th>
+          <th data-i18n="th_status">Status</th>
+          <th data-i18n="th_actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+          <tr>
+            <td>{{ h.date }} {{ h.time }}</td>
+            <td>{{ h.other_party_name }}</td>
+            <td><span class="badge bg-secondary">{{ h.status }}</span></td>
+            <td>
+              <a href="{{ url_for('chat', appointment_id=h.id) }}" class="btn btn-sm btn-outline-teal">Chat</a>
+              {% if h.status == 'COMPLETED' and h.prescription_url %}
+                <a href="{{ h.prescription_url }}" class="btn btn-sm btn-outline-secondary" target="_blank">Prescription</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="text-muted text-center">No past consultations.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

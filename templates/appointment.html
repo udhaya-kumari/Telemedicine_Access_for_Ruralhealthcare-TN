@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Appointments · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  {% set role = session.get('role', 'patient') | lower %}
+  {% if role == 'patient' %}
+  <h1 class="h3 fw-bold mb-3" data-i18n="appt_find">Find a doctor</h1>
+  <p class="text-muted" data-i18n="appt_find_hint">Search by name, specialty, or symptoms (e.g. "skin irritation").</p>
+  <div class="input-group input-group-lg mb-4">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input id="doctorSearch" class="form-control" placeholder="Search...">
+  </div>
+  <div id="doctorResults" class="row g-3"></div>
+  <!-- Slot booking modal -->
+  <div class="modal fade" id="slotModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" data-i18n="appt_pick_slot">Pick a slot</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="slotModalBody">
+          <div class="text-center text-muted py-3">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <h1 class="h3 fw-bold mb-3" data-i18n="appt_requests">Appointment requests</h1>
+  <div id="requestList" class="vstack gap-3"></div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const t = (k, fb) => (window.TMLang && TMLang.STRINGS[TMLang.getLang()][k]) || fb || k;
+  function debounce(fn, ms) {
+    let to; return function () { clearTimeout(to); const a = arguments, c = this;
+      to = setTimeout(() => fn.apply(c, a), ms); };
+  }
+  // ---------- Patient flow ----------
+  function initPatient() {
+    const input = document.getElementById('doctorSearch');
+    const results = document.getElementById('doctorResults');
+    if (!input || !results) return;
+    const search = debounce(function () {
+      const q = input.value.trim();
+      if (!q) { results.innerHTML = ''; return; }
+      window.tmFetch('/search-doctor?query=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(list => renderDoctors(list || []))
+        .catch(() => {});
+    }, 300);
+    input.addEventListener('input', search);
+    function renderDoctors(list) {
+      if (!list.length) {
+        results.innerHTML = `<div class="col-12 text-muted text-center py-4">${t('no_results','No doctors found.')}</div>`;
+        return;
+      }
+      results.innerHTML = list.map(d => `
+        <div class="col-12 col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <h5 class="mb-1">Dr. ${escapeHtml(d.name || '')}</h5>
+              <div class="text-teal small mb-1">${escapeHtml(d.specialization || d.specialty || '')}</div>
+              <div class="text-muted small mb-2">${escapeHtml(d.hospital || '')}</div>
+              <div class="small mb-3">
+                <i class="bi bi-clock"></i>
+                ${(d.available_slots != null) ? d.available_slots : '—'} slots
+              </div>
+              <button class="btn btn-teal btn-sm" data-book="${d.id}">${t('book_btn','Book')}</button>
+            </div>
+          </div>
+        </div>`).join('');
+      results.querySelectorAll('[data-book]').forEach(btn => {
+        btn.addEventListener('click', () => openSlotModal(btn.dataset.book));
+      });
+    }
+    const slotModal = new bootstrap.Modal(document.getElementById('slotModal'));
+    const body = document.getElementById('slotModalBody');
+    function openSlotModal(doctorId) {
+      body.innerHTML = '<div class="text-center text-muted py-3">Loading…</div>';
+      slotModal.show();
+      window.tmFetch('/doctor/' + encodeURIComponent(doctorId) + '/slots')
+        .then(r => r.json())
+        .then(slots => renderSlots(doctorId, slots || []))
+        .catch(() => { body.innerHTML = '<div class="text-danger">Failed to load.</div>'; });
+    }
+    function renderSlots(doctorId, slots) {
+      const avail = slots.filter(s => (s.status || 'AVAILABLE').toUpperCase() === 'AVAILABLE');
+      if (!avail.length) { body.innerHTML = `<div class="text-muted text-center py-3">${t('no_slots','No available slots.')}</div>`; return; }
+      body.innerHTML = '<div class="vstack gap-2">' + avail.map(s => `
+        <button class="btn btn-outline-teal text-start" data-slot="${s.id}">
+          <i class="bi bi-calendar-event me-1"></i>
+          ${escapeHtml(s.date || '')} · ${escapeHtml(s.start_time || '')} – ${escapeHtml(s.end_time || '')}
+        </button>`).join('') + '</div>';
+      body.querySelectorAll('[data-slot]').forEach(btn => {
+        btn.addEventListener('click', () => book(doctorId, btn.dataset.slot, btn));
+      });
+    }
+    function book(doctorId, slotId, btn) {
+      btn.disabled = true;
+      window.tmFetch('/appointment/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor_id: doctorId, slot_id: slotId })
+      })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          if (ok) {
+            body.innerHTML = `<div class="alert alert-success mb-0">${escapeHtml(d.message || 'Appointment booked.')}</div>`;
+          } else {
+            btn.disabled = false;
+            body.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger">${escapeHtml(d.message || 'Booking failed.')}</div>`);
+          }
+        })
+        .catch(() => { btn.disabled = false; });
+    }
+  }
+  // ---------- Doctor flow ----------
+  function initDoctor() {
+    const list = document.getElementById('requestList');
+    if (!list) return;
+    function refresh() {
+      window.tmFetch('/doctor/appointment-requests')
+        .then(r => r.json())
+        .then(items => render(items || []))
+        .catch(() => {});
+    }
+    function render(items) {
+      if (!items.length) {
+        list.innerHTML = `<div class="text-muted text-center py-4">${t('no_requests','No pending requests.')}</div>`;
+        return;
+      }
+      list.innerHTML = items.map(a => {
+        const status = (a.status || 'PENDING').toUpperCase();
+        let actions = `<span class="badge bg-secondary">${escapeHtml(status)}</span>`;
+        if (status === 'PENDING') {
+          actions = `
+            <button class="btn btn-teal btn-sm" data-accept="${a.id}">${t('accept_btn','Accept')}</button>
+            <button class="btn btn-outline-danger btn-sm" data-reject="${a.id}">${t('reject_btn','Reject')}</button>
+            <button class="btn btn-outline-secondary btn-sm" data-change="${a.id}">${t('change_btn','Change time')}</button>`;
+        } else if (status === 'ACCEPTED' || status === 'RESCHEDULED') {
+          actions = `
+            <span class="badge bg-success-subtle text-success border border-success-subtle">${escapeHtml(status)}</span>
+            <button class="btn btn-teal btn-sm" data-complete="${a.id}">${t('complete_btn','Complete')}</button>`;
+        }
+        return `
+        <div class="card border-0 shadow-sm">
+          <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${escapeHtml(a.patient_name || 'Patient')}
+                <span class="text-muted small">(ID: ${escapeHtml(a.patient_id != null ? a.patient_id : '—')})</span>
+              </div>
+              <div class="text-muted small">
+                <i class="bi bi-calendar-event"></i>
+                ${escapeHtml(a.date || '')} · ${escapeHtml(a.start_time || '')} – ${escapeHtml(a.end_time || '')}
+              </div>
+              ${a.reason ? `<div class="small mt-1">${escapeHtml(a.reason)}</div>` : ''}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              ${actions}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      list.querySelectorAll('[data-accept]').forEach(b => b.addEventListener('click', () => accept(b.dataset.accept)));
+      list.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', () => reject(b.dataset.reject)));
+      list.querySelectorAll('[data-complete]').forEach(b => b.addEventListener('click', () => complete(b.dataset.complete)));
+      list.querySelectorAll('[data-change]').forEach(b => b.addEventListener('click', () => change(b.dataset.change)));
+    }
+    function accept(id) {
+      window.tmFetch('/appointment/accept', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ appointment_id: id })
+      }).then(refresh);
+    }
+    function reject(id) {
+      window.tmFetch('/appointment/reject', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ appointment_id: id })
+      }).then(refresh);
+    }
+    function complete(id) {
+      window.tmFetch('/appointment/complete', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ appointment_id: id })
+      }).then(refresh);
+    }
+    function change(id) {
+      const date = prompt('New date (YYYY-MM-DD)'); if (!date) return;
+      const start = prompt('New start time (HH:MM)'); if (!start) return;
+      const end = prompt('New end time (HH:MM)'); if (!end) return;
+      window.tmFetch('/appointment/change-slot', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ appointment_id: id, date, start_time: start, end_time: end })
+      }).then(refresh);
+    }
+    refresh();
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  window.AppointmentUI = {
+    init(role) { role === 'doctor' ? initDoctor() : initPatient(); }
+  };
+})();
+</script>
+<script>
+  window.__USER_ROLE__ = "{{ session.get('role', 'patient') | lower }}";
+  document.addEventListener('DOMContentLoaded', function(){
+    if (window.AppointmentUI) window.AppointmentUI.init(window.__USER_ROLE__);
+  });
+</script>
+{% endblock %}

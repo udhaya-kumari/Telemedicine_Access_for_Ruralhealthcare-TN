@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Profile · TeleMed{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <h1 class="h3 fw-bold mb-4" data-i18n="profile_title">My Profile</h1>
+  {% set role = session.get('role', 'patient') | lower %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      <div id="profileAlert" class="alert d-none" role="alert"></div>
+      {% if role == 'doctor' %}
+      <form id="profileForm"
+            data-role="doctor"
+            data-get-endpoint="/doctor/profile"
+            data-post-endpoint="/doctor/profile/update">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_name">Name</label>
+            <input class="form-control" name="name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Doctor Registration No.</label>
+            <input class="form-control" name="reg_no" placeholder="e.g. TN-MED-10001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_qualification">Qualification</label>
+            <input class="form-control" name="qualification">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_specialization">Specialization</label>
+            <input class="form-control" name="specialization">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_hospital">Hospital</label>
+            <input class="form-control" name="hospital">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_experience">Experience (years)</label>
+            <input type="number" min="0" class="form-control" name="experience">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_location">Location</label>
+            <input class="form-control" name="location">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_fee">
+              Consultation Fee (₹) <span class="text-muted small">(optional)</span>
+            </label>
+            <input type="number" min="0" step="0.01" class="form-control"
+                   name="consultation_fee" placeholder="Leave blank if not set">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-teal mt-4" data-i18n="save_changes">Save changes</button>
+      </form>
+      {% else %}
+      <form id="profileForm"
+            data-role="patient"
+            data-get-endpoint="/patient/profile"
+            data-post-endpoint="/patient/profile/update">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_name">Name</label>
+            <input class="form-control" name="name" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" data-i18n="f_age">Age</label>
+            <input type="number" min="0" class="form-control" name="age">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" data-i18n="f_gender">Gender</label>
+            <select class="form-select" name="gender">
+              <option value="">—</option>
+              <option value="female" data-i18n="gender_female">Female</option>
+              <option value="male" data-i18n="gender_male">Male</option>
+              <option value="other" data-i18n="gender_other">Other</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_phone">Phone</label>
+            <input class="form-control" name="phone">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" data-i18n="f_blood">Blood Group</label>
+            <select class="form-select" name="blood_group">
+              <option value="">—</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>O+</option><option>O-</option>
+              <option>AB+</option><option>AB-</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" data-i18n="f_address">Address</label>
+            <textarea class="form-control" rows="3" name="address"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-teal mt-4" data-i18n="save_changes">Save changes</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const form = document.getElementById('profileForm');
+  if (!form) return;
+  const alertBox = document.getElementById('profileAlert');
+  function showAlert(msg, ok){
+    alertBox.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+    alertBox.textContent = msg;
+    alertBox.classList.remove('d-none');
+  }
+  fetch(form.dataset.getEndpoint, { credentials: 'include', headers: {'Accept':'application/json'} })
+    .then(r => { if (r.status === 401) { location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+    .then(data => {
+      if (!data) return;
+      Object.keys(data).forEach(k => {
+        const el = form.elements.namedItem(k);
+        if (el) el.value = data[k] ?? '';
+      });
+    })
+    .catch(() => {});
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    const payload = {};
+    new FormData(form).forEach((v,k) => payload[k] = v);
+    fetch(form.dataset.postEndpoint, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify(payload)
+    })
+      .then(r => {
+        if (r.status === 401) { location.href = '/login'; return; }
+        showAlert(r.ok ? 'Profile updated.' : 'Update failed.', r.ok);
+      })
+      .catch(() => showAlert('Network error.', false));
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}My Patients · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="h3 fw-bold mb-3" data-i18n="my_patients">My Patients</h1>
+  {% if not patients %}
+    <div class="alert alert-info">
+      No patients yet. Patients you accept appointments from will show up here.
+    </div>
+  {% else %}
+    <div class="row g-3">
+      {% for p in patients %}
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <h5 class="mb-1">{{ p.name }}</h5>
+              <div class="text-muted small mb-2">
+                {{ p.age or '—' }} yrs
+                {% if p.gender %} · {{ p.gender | capitalize }}{% endif %}
+              </div>
+              {% if p.village %}
+                <div class="small mb-2"><i class="bi bi-geo-alt"></i> {{ p.village }}</div>
+              {% endif %}
+              <div class="small text-muted mb-1">Last appointment</div>
+              <div class="small mb-3">
+                {{ p.last_date or '—' }}
+                <span class="badge bg-secondary ms-1">{{ p.last_status or '—' }}</span>
+              </div>
+              {% if p.last_appointment_id %}
+                <a href="{{ url_for('chat', appointment_id=p.last_appointment_id) }}"
+                   class="btn btn-teal btn-sm">
+                  <i class="bi bi-chat-dots"></i> Chat
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

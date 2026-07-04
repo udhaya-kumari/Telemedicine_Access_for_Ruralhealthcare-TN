@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Chat · TeleMed{% endblock %}
+{% block content %}
+<div class="container" data-appointment-id="{{ appointment_id or '' }}">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 fw-bold mb-0" data-i18n="chat_title">Chat</h1>
+  </div>
+  {% if not appointment_id %}
+    {% if not chats %}
+      <div class="alert alert-warning" data-i18n="chat_no_appt">
+        No booked appointments yet. Once you book (or accept) an appointment, it'll show up here to chat.
+      </div>
+    {% else %}
+      <p class="text-muted mb-2">Select a conversation to continue chatting.</p>
+      <div id="chatList" class="list-group">
+        {% for c in chats %}
+          <a href="{{ url_for('chat', appointment_id=c.appointment_id) }}"
+             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person-circle me-2"></i>{{ c.other_party_name }}</span>
+            <span class="badge bg-secondary">{{ c.status }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% else %}
+    <a href="{{ url_for('chat') }}" class="small text-teal d-inline-block mb-2">
+      <i class="bi bi-arrow-left"></i> Back to conversations
+    </a>
+    <div id="chatBox"
+         class="border rounded p-3 bg-light mb-3"
+         style="height: 60vh; overflow-y: auto;">
+      <div class="text-center text-muted small" data-i18n="chat_loading">Loading…</div>
+    </div>
+    <form id="chatForm" class="d-flex gap-2 align-items-center">
+      <input type="file" id="chatFile" name="file" class="form-control form-control-sm"
+             accept=".pdf,.jpg,.jpeg,.png" style="max-width: 180px;">
+      <input type="text" id="chatText" class="form-control" placeholder="Type a message…"
+             data-i18n-placeholder="chat_placeholder" autocomplete="off">
+      <button type="submit" class="btn btn-teal">
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// TeleMed — chat (AJAX polling).
+(function () {
+  const root = document.querySelector('[data-appointment-id]');
+  if (!root) return;
+  const appointmentId = root.dataset.appointmentId;
+  if (!appointmentId) return;
+  const box = document.getElementById('chatBox');
+  const form = document.getElementById('chatForm');
+  const textInput = document.getElementById('chatText');
+  const fileInput = document.getElementById('chatFile');
+  let lastIds = new Set();
+  let currentUserId = null;
+  let boxIsEmpty = true; // tracks the "Loading…" placeholder state explicitly
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  function renderMessage(m) {
+    // Special system message: the video consultation link. Show a real
+    // "Join Now" button instead of just the raw link text.
+    if (m.id === 'jitsi-link') {
+      // Direct Jitsi room link (contains the room id), e.g.
+      // https://meet.jit.si/TeleMed_42 — opens the call straight on
+      // meet.jit.si rather than routing through our own /consultation page.
+      const meetingLink = m.meeting_link;
+      return `
+        <div class="d-flex justify-content-center mb-3">
+          <div class="bg-white border rounded p-3 shadow-sm text-center" style="max-width: 85%; color:#000;">
+            <div class="mb-2"><i class="bi bi-camera-video-fill text-teal"></i> Video consultation is ready.</div>
+            <div class="small mb-2 text-break">
+              <a href="${meetingLink}" target="_blank" rel="noopener" style="color:#000;">${escapeHtml(meetingLink)}</a>
+            </div>
+            <a href="${meetingLink}" class="btn btn-success btn-sm" target="_blank" rel="noopener">
+              <i class="bi bi-camera-video-fill me-1"></i> Join Now
+            </a>
+          </div>
+        </div>`;
+    }
+    const mine = currentUserId && m.sender_id === currentUserId;
+    const side = mine ? 'justify-content-end' : 'justify-content-start';
+    const bubble = mine ? 'bg-teal' : 'bg-white border';
+    let body = '';
+    if (m.attachment_url) {
+      const isImg = /\.(jpg|jpeg|png)$/i.test(m.attachment_url);
+      body = isImg
+        ? `<a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" class="img-fluid rounded" style="max-height:160px"></a>`
+        : `<a href="${m.attachment_url}" target="_blank" style="color:#000;"><i class="bi bi-paperclip"></i> Attachment</a>`;
+    }
+    if (m.text) body += `<div>${escapeHtml(m.text)}</div>`;
+    return `
+      <div class="d-flex ${side} mb-2">
+        <div class="${bubble} rounded p-2 shadow-sm" style="max-width: 75%; color:#000;">
+          ${body}
+          <div class="small text-end mt-1" style="color:#000;">
+            ${escapeHtml(m.created_at || '')}
+          </div>
+        </div>
+      </div>`;
+  }
+  async function poll() {
+    try {
+      const res = await fetch(`/chat/messages/${appointmentId}`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      currentUserId = data.current_user_id || currentUserId;
+      const msgs = data.messages || [];
+      const fresh = msgs.filter(m => !lastIds.has(m.id));
+      if (fresh.length || boxIsEmpty) {
+        if (boxIsEmpty) box.innerHTML = '';
+        boxIsEmpty = false;
+        fresh.forEach(m => {
+          lastIds.add(m.id);
+          box.insertAdjacentHTML('beforeend', renderMessage(m));
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+    } catch (e) { /* network blip — keep polling */ }
+  }
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = textInput.value.trim();
+    const file = fileInput.files[0];
+    if (!text && !file) return;
+    const fd = new FormData();
+    fd.append('appointment_id', appointmentId);
+    if (text) fd.append('text', text);
+    if (file) fd.append('file', file);
+    try {
+      const res = await fetch('/chat/send', {
+        method: 'POST',
+        credentials: 'include',
+        body: fd
+      });
+      if (res.ok) {
+        textInput.value = '';
+        fileInput.value = '';
+        poll();
+      }
+    } catch (e) { /* noop */ }
+  });
+  poll();
+  setInterval(poll, 2000);
+})();
+</script>
+{% endblock %}

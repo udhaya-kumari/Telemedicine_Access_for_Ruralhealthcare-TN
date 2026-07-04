@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Book Appointment · Dr. {{ doctor.name }} · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <a href="{{ url_for('consult.doctor_profile_view', doctor_id=doctor.id) }}" class="small text-teal d-inline-block mb-3">
+    <i class="bi bi-arrow-left"></i> Back to Dr. {{ doctor.name }}'s profile
+  </a>
+  <h1 class="h4 fw-bold mb-1">Book Appointment with Dr. {{ doctor.name }}</h1>
+  <p class="text-muted mb-4">{{ doctor.specialization or '' }} · {{ doctor.hospital or '' }}</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category or 'info' }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if not slots_by_date %}
+    <div class="text-muted text-center py-5">No upcoming slots available for this doctor.</div>
+  {% else %}
+    <form method="post" action="{{ url_for('consult.book_doctor_appointment', doctor_id=doctor.id) }}">
+      {% for slot_date, slots in slots_by_date.items() %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-calendar-event"></i> {{ slot_date }}</h2>
+            <div class="d-flex flex-wrap gap-2">
+              {% for slot in slots %}
+                {% set is_booked = (slot.status or 'AVAILABLE')|upper == 'BOOKED' %}
+                <div class="form-check form-check-inline slot-choice">
+                  <input class="form-check-input" type="radio" name="slot_id" id="slot{{ slot.id }}"
+                         value="{{ slot.id }}" {% if is_booked %}disabled{% endif %} required>
+                  <label class="form-check-label {% if is_booked %}text-muted{% endif %}" for="slot{{ slot.id }}">
+                    {{ slot.start_time or slot.slot_time }}
+                    {% if is_booked %}<span class="badge bg-secondary ms-1">Booked</span>{% endif %}
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="mb-3">
+        <label class="form-label" for="reason">Reason for visit (optional)</label>
+        <textarea class="form-control" id="reason" name="reason" rows="3"
+                  placeholder="Briefly describe your symptoms"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-teal btn-lg" data-i18n="confirm_booking_btn">Confirm Booking</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

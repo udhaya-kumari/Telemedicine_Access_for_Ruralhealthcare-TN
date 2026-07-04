@@ -1,0 +1,139 @@
+:root {
+  --teal: #0f897a;
+  --teal-dark: #0b6a5e;
+  --teal-soft: #e6f4f1;
+  --ink: #1f2a37;
+}
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Tamil", sans-serif;
+  color: var(--ink);
+  background: #f7faf9;
+}
+.text-teal { color: var(--teal) !important; }
+.bg-teal-subtle { background: var(--teal-soft) !important; }
+.btn-teal {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+.btn-teal:hover, .btn-teal:focus {
+  background: var(--teal-dark);
+  border-color: var(--teal-dark);
+  color: #fff;
+}
+.btn-outline-teal {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.btn-outline-teal:hover {
+  background: var(--teal);
+  color: #fff;
+}
+.hero-section {
+  background: linear-gradient(180deg, var(--teal-soft) 0%, #ffffff 100%);
+}
+.feature-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(15,137,122,.06);
+  height: 100%;
+}
+.feature-card h5 { margin-top: .75rem; }
+.dash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #e6ebea;
+  border-radius: 16px;
+  padding: 2rem 1rem;
+  min-height: 160px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.dash-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--teal);
+  box-shadow: 0 8px 24px rgba(15,137,122,.10);
+  color: var(--ink);
+}
+#emergencyCard i { color: #dc3545; }
+.dash-card-emergency-active {
+  background: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: #fff !important;
+  animation: emergencyPulse 1.4s infinite;
+}
+.dash-card-emergency-active i,
+.dash-card-emergency-active div {
+  color: #fff !important;
+}
+.dash-card-emergency-active:hover {
+  color: #fff;
+  border-color: #dc3545;
+}
+@keyframes emergencyPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220,53,69,.55); }
+  70%  { box-shadow: 0 0 0 14px rgba(220,53,69,0); }
+  100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+}
+/* Larger tap targets for rural users on mobile */
+.btn-lg, .form-control-lg, .form-select-lg { min-height: 52px; }
+
+/* ---------------------------------------------------------------------
+   Responsive layout rules (mobile-first, no JavaScript required)
+   --------------------------------------------------------------------- */
+
+/* Prevent unwanted horizontal scrolling on the page itself. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Images always scale down to fit their container, never overflow it. */
+img, svg { max-width: 100%; height: auto; }
+
+/* Dashboard/result cards wrap automatically instead of overflowing;
+   Bootstrap's .row/.col grid already wraps, this just guarantees
+   sensible minimum sizing so cards never disappear on narrow screens. */
+.dash-card, .doctor-card, .feature-card {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Forms resize to their container instead of forcing a fixed width. */
+.form-control, .form-select, textarea, input, select {
+  max-width: 100%;
+}
+
+/* Tables scroll horizontally instead of squeezing/overflowing the page.
+   (.table-responsive already provides this; the rules below make sure
+   any table on the site gets the same behaviour even without the class.) */
+table { min-width: 100%; }
+.table-responsive, table:not(.table-responsive table) {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* If a sidebar layout is ever introduced, stack it above the main
+   content on small screens instead of hiding it. */
+.sidebar {
+  width: 100%;
+}
+@media (max-width: 767.98px) {
+  .with-sidebar { flex-direction: column; }
+  .sidebar { order: -1; width: 100%; margin-bottom: 1rem; }
+}
+
+/* Buttons never overflow their container on small screens. */
+.btn { max-width: 100%; white-space: normal; }
+
+@media (max-width: 575.98px) {
+  .container { padding-left: 1rem; padding-right: 1rem; }
+  h1, .h3 { font-size: 1.5rem; }
+}
+
+/* Chat messages: text is always black, regardless of sender/bubble color. */
+#chatBox, #chatBox * {
+  color: #000 !important;
+}

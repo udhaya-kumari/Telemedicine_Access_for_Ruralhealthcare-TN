@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Patient Dashboard · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="h3 fw-bold mb-1" data-i18n="patient_dash_title">Patient Dashboard</h1>
+  <p class="text-muted mb-4">
+    <span data-i18n="welcome">Welcome</span>,
+    {{ session.get('user', {}).get('name', '') }}
+  </p>
+  <div class="row g-3">
+    {% set cards = [
+      ('records',         'bi-file-earmark-medical','card_records',  'Medical Records',       '/patient/records'),
+      ('consult',         'bi-clipboard2-pulse',    'card_consult',  'Consult Doctor',        url_for('consult.consult_doctor')),
+      ('chat',            'bi-chat-dots',           'card_chat',     'Chat',                  '/chat'),
+      ('history',         'bi-clock-history',       'card_history',  'Consultation History',  '/patient/history'),
+      ('emergency',       'bi-exclamation-octagon-fill','card_emergency','Emergency',         '/emergency'),
+      ('profile',         'bi-person-circle',       'card_profile',  'Profile',               url_for('profile')),
+    ] %}
+    {% for key, icon, i18n, label, href in cards %}
+
+    
+      <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ href }}" class="dash-card">
+          <i class="bi {{ icon }} fs-1 text-teal"></i>
+          <div class="fw-semibold mt-2" data-i18n="{{ i18n }}">{{ label }}</div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

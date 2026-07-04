@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Emergency · TeleMed{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 640px;">
+  <div class="alert alert-danger d-flex align-items-center">
+    <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+    <div>
+      <div class="fw-bold" data-i18n="emerg_warn_title">For life-threatening emergencies, call 108.</div>
+      <div class="small" data-i18n="emerg_warn_body">
+        Use this form only to alert nearby available doctors for urgent (non-fatal) help.
+      </div>
+    </div>
+  </div>
+  <h1 class="h4 fw-bold mb-3" data-i18n="emerg_title">Request emergency consultation</h1>
+  <form id="emergencyForm" class="card card-body">
+    <div class="mb-3">
+      <label class="form-label" data-i18n="emerg_symptoms">Describe your symptoms</label>
+      <textarea name="symptoms" class="form-control" rows="3" required maxlength="500"></textarea>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-md-6">
+        <label class="form-label" data-i18n="emerg_phone">Contact phone</label>
+        <input type="tel" name="phone" class="form-control" required pattern="[0-9+\- ]{7,15}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" data-i18n="emerg_location">Village / Location</label>
+        <input type="text" name="location" class="form-control" required maxlength="120">
+      </div>
+    </div>
+    <button class="btn btn-danger btn-lg" data-i18n="emerg_send">
+      <i class="bi bi-broadcast"></i> Send emergency request
+    </button>
+    <div id="emergMsg" class="small mt-2"></div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('emergencyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const msg = document.getElementById('emergMsg');
+  msg.textContent = '';
+  try {
+    const res = await fetch('/emergency/request', {
+      method: 'POST', credentials: 'include', body: fd
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = 'small mt-2 text-success';
+      msg.textContent = data.message || 'Request sent. A doctor will contact you shortly.';
+      e.target.reset();
+    } else {
+      msg.className = 'small mt-2 text-danger';
+      msg.textContent = data.message || 'Failed to send request.';
+    }
+  } catch (_) {
+    msg.className = 'small mt-2 text-danger';
+    msg.textContent = 'Network error.';
+  }
+});
+</script>
+{% endblock %}

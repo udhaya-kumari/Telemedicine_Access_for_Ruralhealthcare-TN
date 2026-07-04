@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Dr. {{ doctor.name }} · TeleMed{% endblock %}
+{% block content %}
+<div class="container">
+  <a href="{{ url_for('consult.consult_doctor') }}" class="small text-teal d-inline-block mb-3">
+    <i class="bi bi-arrow-left"></i> Back to search
+  </a>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <i class="bi bi-person-circle" style="font-size:4rem;color:var(--teal);"></i>
+        <div>
+          <h1 class="h3 fw-bold mb-1">Dr. {{ doctor.name }}</h1>
+          <div class="text-teal">{{ doctor.specialization or '—' }}</div>
+          <div class="text-muted small">{{ doctor.qualification or '' }}</div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="small text-muted">Registration No.</div>
+          <div class="fw-semibold">{{ doctor.reg_no or '—' }}</div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="small text-muted">Experience</div>
+          <div class="fw-semibold">{{ doctor.experience or 0 }} years</div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="small text-muted">Hospital / Clinic</div>
+          <div class="fw-semibold">{{ doctor.hospital or '—' }}</div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="small text-muted">Consultation Fee</div>
+          <div class="fw-semibold">₹{{ doctor.consultation_fee or '—' }}</div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="small text-muted">Available Days</div>
+          <div class="fw-semibold">{{ doctor.available_days or '—' }}</div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-8">
+          <div class="small text-muted">Available Time Slots</div>
+          <div class="fw-semibold">{{ doctor.available_slots or '—' }}</div>
+        </div>
+        {% if doctor.symptoms_treated %}
+        <div class="col-12">
+          <div class="small text-muted">Symptoms Treated</div>
+          <div class="fw-semibold">{{ doctor.symptoms_treated }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if doctor.bio %}
+        <p class="text-muted">{{ doctor.bio }}</p>
+      {% endif %}
+
+      <a href="{{ url_for('consult.book_doctor_appointment', doctor_id=doctor.id) }}"
+         class="btn btn-teal btn-lg" data-i18n="book_appointment_btn">Book Appointment</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Register · TeleMed Tamil Nadu{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 460px;">
+  <div class="card shadow-sm border-0 mt-4">
+    <div class="card-body p-4">
+
+      <h1 class="h4 fw-bold mb-3 text-center">
+        Create Account
+      </h1>
+
+      <div id="registerAlert" class="alert alert-danger d-none" role="alert"></div>
+
+      <form id="registerForm"
+            method="post"
+            action="{{ url_for('auth.register') }}"
+            data-endpoint="{{ url_for('auth.register') }}">
+
+        <div class="mb-3">
+          <label class="form-label">Full Name</label>
+          <input type="text"
+                 name="name"
+                 class="form-control form-control-lg"
+                 required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email"
+                 name="email"
+                 class="form-control form-control-lg"
+                 required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password"
+                 name="password"
+                 class="form-control form-control-lg"
+                 minlength="8"
+                 pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}"
+                 title="At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character."
+                 required>
+          <div class="form-text">
+            At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Role</label>
+          <select id="registerRole"
+                  name="role"
+                  class="form-select form-select-lg">
+
+            <option value="Patient">Patient</option>
+            <option value="Doctor">Doctor</option>
+
+          </select>
+        </div>
+
+        <div class="mb-3 d-none" id="regNoGroup">
+          <label class="form-label">Doctor Registration No.</label>
+          <input type="text"
+                 name="reg_no"
+                 id="regNoInput"
+                 class="form-control form-control-lg"
+                 placeholder="e.g. TN-MED-10001">
+        </div>
+
+        <button type="submit"
+                class="btn btn-teal btn-lg w-100">
+          Register
+        </button>
+
+      </form>
+
+      <div class="text-center mt-3">
+        Already have an account?
+        <a href="{{ url_for('login') }}">Login</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const roleSelect = document.getElementById('registerRole');
+  const regNoGroup = document.getElementById('regNoGroup');
+  const regNoInput = document.getElementById('regNoInput');
+  if (!roleSelect || !regNoGroup || !regNoInput) return;
+  function syncRegNoField() {
+    if (roleSelect.value === 'Doctor') {
+      regNoGroup.classList.remove('d-none');
+      regNoInput.setAttribute('required', 'required');
+    } else {
+      regNoGroup.classList.add('d-none');
+      regNoInput.removeAttribute('required');
+      regNoInput.value = '';
+    }
+  }
+  roleSelect.addEventListener('change', syncRegNoField);
+  syncRegNoField();
+})();
+</script>
+{% endblock %}

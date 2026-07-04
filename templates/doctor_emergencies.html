@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Emergency Requests · TeleMed{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 fw-bold mb-0">
+      <i class="bi bi-exclamation-triangle-fill text-danger"></i> Emergency Requests
+    </h1>
+    <a href="{{ url_for('doctor_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <div id="emergListLoading" class="text-muted text-center py-4">Loading…</div>
+  <div id="emergListEmpty" class="alert alert-secondary d-none">
+    No pending emergency requests right now.
+  </div>
+  <div id="emergList"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const listEl = document.getElementById('emergList');
+  const loadingEl = document.getElementById('emergListLoading');
+  const emptyEl = document.getElementById('emergListEmpty');
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function formatPostedAt(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    const datePart = d.toLocaleDateString();
+    const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${datePart}, ${timePart}`;
+  }
+
+  function renderCard(item) {
+    const attended = item.status && item.status !== 'PENDING';
+    const cardClass = attended ? 'card mb-3' : 'card border-danger mb-3';
+    const badgeClass = attended ? 'badge bg-secondary' : 'badge bg-danger';
+    const badgeText = attended ? escapeHtml(item.status) : 'PENDING';
+    return `
+      <div class="${cardClass}" data-id="${item.id}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <h5 class="card-title mb-1"><i class="bi bi-person-circle"></i> ${escapeHtml(item.patient_name)}</h5>
+            <span class="${badgeClass}">${badgeText}</span>
+          </div>
+          <p class="mb-1"><strong>Posted:</strong> ${formatPostedAt(item.created_at)}</p>
+          <p class="mb-1"><strong>Symptoms:</strong> ${escapeHtml(item.symptoms || item.description || '—')}</p>
+          <p class="mb-1"><strong>Location:</strong> ${escapeHtml(item.location || '—')}</p>
+          <p class="mb-2"><strong>Contact:</strong> ${escapeHtml(item.contact_number || '—')}</p>
+          <button class="btn btn-danger acceptBtn">
+            <i class="bi bi-camera-video-fill"></i> Accept &amp; start video call
+          </button>
+        </div>
+      </div>`;
+  }
+
+  async function load() {
+    try {
+      const res = await window.tmFetch('/emergency/doctor/list');
+      const data = await res.json();
+      const items = data.data || [];
+      loadingEl.classList.add('d-none');
+      if (!items.length) {
+        emptyEl.classList.remove('d-none');
+        listEl.innerHTML = '';
+        return;
+      }
+      emptyEl.classList.add('d-none');
+      listEl.innerHTML = items.map(renderCard).join('');
+    } catch (e) {
+      loadingEl.textContent = 'Unable to load emergency requests.';
+    }
+  }
+
+  listEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.acceptBtn');
+    if (!btn) return;
+    const card = btn.closest('[data-id]');
+    const id = card.dataset.id;
+    btn.disabled = true;
+    btn.textContent = 'Starting…';
+    try {
+      const res = await window.tmFetch(`/emergency/${id}/accept`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.href = `/consultation/${data.data.appointment_id}`;
+      } else {
+        alert(data.message || 'Could not accept this request.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-camera-video-fill"></i> Accept &amp; start video call';
+        load();
+      }
+    } catch (e) {
+      alert('Network error. Please try again.');
+      btn.disabled = false;
+    }
+  });
+
+  load();
+  setInterval(load, 5000);
+})();
+</script>
+{% endblock %}
