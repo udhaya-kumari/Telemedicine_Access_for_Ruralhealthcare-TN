@@ -6,14 +6,14 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key")
 
     MYSQL_USER = os.environ.get("MYSQL_USER", "root")
-    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "08642")
+    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "change")
     MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
     MYSQL_PORT = os.environ.get("MYSQL_PORT", "3306")
     MYSQL_DB = os.environ.get("MYSQL_DB", "TMARH")
 
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
-        f"mysql+pymysql://root:08642@localhost:3306/TMARH",
+        f"mysql+pymysql://root:change@localhost:3306/TMARH",
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
